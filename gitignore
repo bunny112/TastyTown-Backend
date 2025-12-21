@@ -1,0 +1,20 @@
+# Node.js dependencies
+
+node_modules/
+
+# Environment variables
+
+.env
+
+# Logs
+
+\*.log
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Uploads (optional: only if you don't want images on GitHub)
+
+uploads/
