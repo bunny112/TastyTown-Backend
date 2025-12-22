@@ -45,9 +45,10 @@ router.post("/create-admin", protect, isAdmin, async (req, res) => {
 });
 
 /* ================= REGISTER ================= */
+/* ================= REGISTER ================= */
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, password, phoneNumber } = req.body;
+    const { name, email, password, phoneNumber, adminKey } = req.body;
 
     if (!name || !email || !password || !phoneNumber) {
       return res.status(400).json({ message: "All fields required" });
@@ -59,16 +60,29 @@ router.post("/register", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const role = (adminKey === "ADMIN@123") ? "admin" : "user";
+    
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      phoneNumber,
+      role
+    });
 
+
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
 
     res.status(201).json({
-      message: "Registered successfully. Verify OTP",
+      message: "Registered successfully",
+      user: userWithoutPassword
     });
   } catch (err) {
+    console.error("Registration error:", err);
     res.status(500).json({ message: err.message });
   }
 });
-
 
 
 /* =================  GET OWN PROFILE ================= */
@@ -79,21 +93,38 @@ router.get("/me", protect, async (req, res) => {
 });
 
 
-/* =================  update user profile ================= */
-
+/* ================= UPDATE USER (ADMIN) ================= */
 router.put("/users/:id", protect, isAdmin, async (req, res) => {
-  const updated = await User.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true }
-  );
-  res.json(updated);
-});
+  try {
+    const { name, email, role } = req.body;
+    
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
-// /users route
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.role = role || user.role;
+    
+    await user.save();
+    
+    const userWithoutPassword = user.toObject();
+    delete userWithoutPassword.password;
+    
+    res.json(userWithoutPassword);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+/* ================= GET ALL USERS (ADMIN) ================= */
 router.get("/users", protect, isAdmin, async (req, res) => {
-  const users = await User.find().select("-password");
-  res.json(users); 
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 
