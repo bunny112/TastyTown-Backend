@@ -14,8 +14,12 @@ import { fileURLToPath } from "url";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://rastarants.netlify.app",
+];
 app.use(cors({
-  origin: "https://restaurantshu.netlify.app",
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
