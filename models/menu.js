@@ -7,10 +7,19 @@ const menuSchema = new mongoose.Schema(
       ref: "Restaurant",
       required: true,
     },
-    name: String,
-    price: Number,
-    type: String,
-
+    name: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["veg", "non-veg"],
+      default: "veg",
+    },
     image: {
       type: String,
       required: true,

@@ -1,6 +1,5 @@
 import express from "express";
 import dotenv from "dotenv";
-dotenv.config();
 import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.js";
@@ -10,18 +9,19 @@ import orderRoutes from "./routes/order.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://rastarants.netlify.app",
-];
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+// ✅ FIXED CORS
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,20 +29,23 @@ const __dirname = path.dirname(__filename);
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+// ✅ MongoDB connection
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.log("❌ MongoDB Error:", err));
 
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB Connected"))
-    .catch(err => console.log(err));
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/restaurants", restaurantRoutes);
 app.use("/api/menu", menuRoutes);
 app.use("/api/orders", orderRoutes);
 
-
-app.listen(PORT, () => {
-    console.log(`server started and running at ${PORT}`);
+// Health check
+app.get("/", (req, res) => {
+  res.send("🚀 Backend Running Successfully");
 });
 
-app.use('/', (req, res) => {
-    res.send("<h1> Welcome to My-app");
-})
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

@@ -7,13 +7,11 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
       required: true,
     },
-
     items: [
       {
         menuId: {
@@ -23,15 +21,16 @@ const orderSchema = new mongoose.Schema(
         },
         name: String,
         price: Number,
-        quantity: Number,
+        quantity: {
+          type: Number,
+          default: 1,
+        },
       },
     ],
-
     customerName: {
       type: String,
       required: true,
     },
-
     customerPhone: {
       type: String,
       required: true,
@@ -39,12 +38,15 @@ const orderSchema = new mongoose.Schema(
     totalAmount: {
       type: Number,
       required: true,
-      default: 0
+      default: 0,
     },
     status: {
       type: String,
       enum: ["Pending", "Approved", "Delivered", "Cancelled"],
       default: "Pending",
+    },
+    deliveryAddress: {
+      type: String,
     },
   },
   { timestamps: true }

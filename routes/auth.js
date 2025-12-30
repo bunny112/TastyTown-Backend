@@ -1,13 +1,11 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "../models/users.js";
+import User from "../models/User.js";
 import { protect, isAdmin } from "../middleware/auth.js";
+import Auth from "../models/Auth.js";
 
 const router = express.Router();
-
- 
-
 
 router.post("/create-admin", protect, isAdmin, async (req, res) => {
   try {
@@ -35,8 +33,6 @@ router.post("/create-admin", protect, isAdmin, async (req, res) => {
         id: admin._id,
         name: admin.name,
         email: admin.email,
-        
-      
       },
     });
   } catch (err) {
@@ -44,7 +40,6 @@ router.post("/create-admin", protect, isAdmin, async (req, res) => {
   }
 });
 
-/* ================= REGISTER ================= */
 /* ================= REGISTER ================= */
 router.post("/register", async (req, res) => {
   try {
@@ -60,30 +55,35 @@ router.post("/register", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const role = (adminKey === "ADMIN@123") ? "admin" : "user";
-    
+
+    let role = "user";
+    if (adminKey === "ADMIN@123") {
+      role = "admin";
+    }
+
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       phoneNumber,
-      role
+      role,
     });
-
-
-    const userWithoutPassword = user.toObject();
-    delete userWithoutPassword.password;
 
     res.status(201).json({
       message: "Registered successfully",
-      user: userWithoutPassword
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
     });
   } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ message: err.message });
+    console.error(err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 });
-
 
 /* =================  GET OWN PROFILE ================= */
 
@@ -92,12 +92,11 @@ router.get("/me", protect, async (req, res) => {
   res.json(user);
 });
 
-
 /* ================= UPDATE USER (ADMIN) ================= */
 router.put("/users/:id", protect, isAdmin, async (req, res) => {
   try {
     const { name, email, role } = req.body;
-    
+
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -106,12 +105,12 @@ router.put("/users/:id", protect, isAdmin, async (req, res) => {
     user.name = name || user.name;
     user.email = email || user.email;
     user.role = role || user.role;
-    
+
     await user.save();
-    
+
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
-    
+
     res.json(userWithoutPassword);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -126,9 +125,6 @@ router.get("/users", protect, isAdmin, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
-
-
 
 /* ================= LOGIN ================= */
 router.post("/login", async (req, res) => {
@@ -145,11 +141,21 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    // ✅ Login details update
+    user.lastLogin = new Date();
+    user.loginCount = (user.loginCount || 0) + 1;
+    await user.save();
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
+
+    // ✅ Auth collection lo store
+    await Auth.create({
+      userId: user._id,
+      email: user.email,
+      token,
+    });
 
     res.json({
       token,
@@ -158,13 +164,45 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        lastLogin: user.lastLogin,
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Add to favorites
+router.put("/favorites", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    const { restaurantId } = req.body;
+
+    if (!user.favorites.includes(restaurantId)) {
+      user.favorites.push(restaurantId);
+      await user.save();
+    }
+
+    res.json({ favorites: user.favorites });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// Remove from favorites (optional)
+router.delete("/favorites/:id", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    user.favorites = user.favorites.filter(
+      (id) => id.toString() !== req.params.id
+    );
+    await user.save();
 
+    res.json({ favorites: user.favorites });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 export default router;
