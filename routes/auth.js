@@ -150,12 +150,6 @@ router.post("/login", async (req, res) => {
       expiresIn: "1d",
     });
 
-    // ✅ Auth collection lo store
-    await Auth.create({
-      userId: user._id,
-      email: user.email,
-      token,
-    });
 
     res.json({
       token,
